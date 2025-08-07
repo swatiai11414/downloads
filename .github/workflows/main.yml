@@ -1,0 +1,86 @@
+name: Download YouTube Videos with yt-dlp
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:  # Manual trigger bhi possible
+
+jobs:
+  download:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install yt-dlp
+
+      - name: Create download_script.py
+        run: |
+          cat << 'EOF' > download_script.py
+          import yt_dlp
+          import os
+          import zipfile
+
+          def download_channel_videos(channel_url, base_path='Videos'):
+              ydl_opts = {
+                  'format': 'bestvideo+bestaudio/best',
+                  'outtmpl': os.path.join(base_path, '%(uploader)s', '%(title)s', '%(title)s.%(ext)s'),
+                  'writethumbnail': True,
+                  'writeinfojson': True,
+                  'merge_output_format': 'mp4',
+                  'noplaylist': False,
+                  'ignoreerrors': True,
+                  'progress_hooks': [progress_hook],
+              }
+
+              with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                  ydl.download([channel_url])
+
+          def progress_hook(d):
+              if d['status'] == 'downloading':
+                  print(f"Downloading: {os.path.basename(d['filename'])}  {d['_percent_str']} at {d['_speed_str']} ETA {d['_eta_str']}")
+              elif d['status'] == 'finished':
+                  print(f"Finished downloading: {os.path.basename(d['filename'])}")
+
+          def zip_folder(folder_path, zip_path):
+              print("Zipping downloaded folder...")
+              with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+                  for root, dirs, files in os.walk(folder_path):
+                      for file in files:
+                          full_path = os.path.join(root, file)
+                          archive_name = os.path.relpath(full_path, os.path.dirname(folder_path))
+                          zipf.write(full_path, archive_name)
+              print(f"Folder zipped successfully as: {zip_path}")
+
+          if __name__ == '__main__':
+              channel_url = "https://www.youtube.com/@GitHubGuru"
+              base_download_path = os.path.expanduser('~/Videos')
+
+              if not os.path.exists(base_download_path):
+                  os.makedirs(base_download_path)
+
+              download_channel_videos(channel_url, base_download_path)
+
+              zip_file_path = os.path.expanduser('~/Videos_downloaded.zip')
+              zip_folder(base_download_path, zip_file_path)
+          EOF
+
+      - name: Run download script
+        run: |
+          python download_script.py
+
+      - name: Upload ZIP artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: videos-download-archive
+          path: ~/Videos_downloaded.zip
