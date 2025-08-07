@@ -1,4 +1,4 @@
-name: Download YouTube Videos with yt-dlp (using cookies.txt)
+name: Download YouTube Videos with yt-dlp (using cookies.txt) 
 
 on:
   push:
