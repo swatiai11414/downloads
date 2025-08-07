@@ -1,4 +1,4 @@
-name: Download YouTube Videos with yt-dlp (using cookies.txt) 
+name: Download YouTube Videos with yt-dlp (Fixed & Improved)
 
 on:
   push:
@@ -19,14 +19,12 @@ jobs:
         with:
           python-version: '3.10'
 
-      - name: Install dependencies
+      - name: Upgrade pip and install latest yt-dlp
         run: |
           python -m pip install --upgrade pip
-          pip install yt-dlp
+          pip install --upgrade yt-dlp
 
-      - name: Prepare cookies file
-        # Agar aapke repo mein cookies.txt already maujood hai, to ye step chhodiye
-        # Yahan hum cookies GitHub secret se bana rahe hain jiska naam 'YOUTUBE_COOKIES' hai
+      - name: Prepare cookies file from GitHub secret
         run: |
           echo "${{ secrets.YOUTUBE_COOKIES }}" > cookies.txt
 
@@ -36,14 +34,17 @@ jobs:
           import yt_dlp
           import os
           import zipfile
+          import time
 
           def progress_hook(d):
               if d['status'] == 'downloading':
                   print(f"Downloading: {os.path.basename(d['filename'])}  {d['_percent_str']} at {d['_speed_str']} ETA {d['_eta_str']}")
               elif d['status'] == 'finished':
                   print(f"Finished downloading: {os.path.basename(d['filename'])}")
+              elif d['status'] == 'error':
+                  print(f"Error downloading: {os.path.basename(d['filename'])}")
 
-          def download_channel_videos(channel_url, base_path='Videos'):
+          def download_channel_videos(channel_url, base_path='Videos', max_retries=3):
               ydl_opts = {
                   'format': 'bestvideo+bestaudio/best',
                   'outtmpl': os.path.join(base_path, '%(uploader)s', '%(title)s', '%(title)s.%(ext)s'),
@@ -53,10 +54,26 @@ jobs:
                   'ignoreerrors': True,
                   'progress_hooks': [progress_hook],
                   'cookies': 'cookies.txt',
+                  'noprogress': False,
+                  'quiet': False,
+                  'retries': 10,
+                  'fragment_retries': 10,
+                  'continuedl': True,
+                  'no_warnings': True,
               }
 
-              with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                  ydl.download([channel_url])
+              attempt = 0
+              while attempt < max_retries:
+                  try:
+                      with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                          ydl.download([channel_url])
+                      break
+                  except Exception as e:
+                      print(f"Error on attempt {attempt + 1}: {e}")
+                      attempt += 1
+                      time.sleep(5)
+              else:
+                  print(f"Failed to download after {max_retries} attempts.")
 
           def zip_folder(folder_path, zip_path):
               print("Zipping downloaded folder...")
