@@ -1,4 +1,4 @@
-name: Download YouTube Videos with yt-dlp (using browser cookies)
+name: Download YouTube Videos with yt-dlp (using cookies.txt)
 
 on:
   push:
@@ -11,10 +11,10 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repo
+      - name: Checkout repository
         uses: actions/checkout@v2
 
-      - name: Set up Python
+      - name: Set up Python 3.10
         uses: actions/setup-python@v4
         with:
           python-version: '3.10'
@@ -24,12 +24,24 @@ jobs:
           python -m pip install --upgrade pip
           pip install yt-dlp
 
+      - name: Prepare cookies file
+        # Agar aapke repo mein cookies.txt already maujood hai, to ye step chhodiye
+        # Yahan hum cookies GitHub secret se bana rahe hain jiska naam 'YOUTUBE_COOKIES' hai
+        run: |
+          echo "${{ secrets.YOUTUBE_COOKIES }}" > cookies.txt
+
       - name: Create download_script.py
         run: |
           cat << 'EOF' > download_script.py
           import yt_dlp
           import os
           import zipfile
+
+          def progress_hook(d):
+              if d['status'] == 'downloading':
+                  print(f"Downloading: {os.path.basename(d['filename'])}  {d['_percent_str']} at {d['_speed_str']} ETA {d['_eta_str']}")
+              elif d['status'] == 'finished':
+                  print(f"Finished downloading: {os.path.basename(d['filename'])}")
 
           def download_channel_videos(channel_url, base_path='Videos'):
               ydl_opts = {
@@ -40,17 +52,11 @@ jobs:
                   'merge_output_format': 'mp4',
                   'ignoreerrors': True,
                   'progress_hooks': [progress_hook],
-                  'cookiesfrombrowser': ('chrome',),  # Browser cookies option
+                  'cookies': 'cookies.txt',
               }
 
               with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                   ydl.download([channel_url])
-
-          def progress_hook(d):
-              if d['status'] == 'downloading':
-                  print(f"Downloading: {os.path.basename(d['filename'])}  {d['_percent_str']} at {d['_speed_str']} ETA {d['_eta_str']}")
-              elif d['status'] == 'finished':
-                  print(f"Finished downloading: {os.path.basename(d['filename'])}")
 
           def zip_folder(folder_path, zip_path):
               print("Zipping downloaded folder...")
