@@ -1,20 +1,20 @@
-name: Download YouTube Videos with yt-dlp
+name: Download YouTube Videos with yt-dlp (using browser cookies)
 
 on:
   push:
     branches:
       - main
-  workflow_dispatch:  # Manual trigger bhi possible
+  workflow_dispatch:
 
 jobs:
   download:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
+      - name: Checkout repo
         uses: actions/checkout@v2
 
-      - name: Set up Python 3.10
+      - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.10'
@@ -40,6 +40,7 @@ jobs:
                   'merge_output_format': 'mp4',
                   'ignoreerrors': True,
                   'progress_hooks': [progress_hook],
+                  'cookiesfrombrowser': ('chrome',),  # Browser cookies option
               }
 
               with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -75,8 +76,7 @@ jobs:
           EOF
 
       - name: Run download script
-        run: |
-          python download_script.py
+        run: python download_script.py
 
       - name: Upload ZIP artifact
         uses: actions/upload-artifact@v4
