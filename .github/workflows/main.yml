@@ -38,7 +38,6 @@ jobs:
                   'writethumbnail': True,
                   'writeinfojson': True,
                   'merge_output_format': 'mp4',
-                  'noplaylist': False,
                   'ignoreerrors': True,
                   'progress_hooks': [progress_hook],
               }
@@ -80,7 +79,7 @@ jobs:
           python download_script.py
 
       - name: Upload ZIP artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: videos-download-archive
           path: ~/Videos_downloaded.zip
